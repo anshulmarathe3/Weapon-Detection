@@ -15,6 +15,6 @@ This project implements a weapon detection system using Python, Jupyter Notebook
    cd Weapon-Detection
 2. pip install -r requirements.txt
 
-##Image
+## Image
 
 ![image](https://github.com/Hrishiycce/Weapon-Detection/assets/99603285/93429cab-3151-4eb4-ab40-3bc3f69ae90d)
