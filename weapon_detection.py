@@ -1,89 +1,81 @@
 import cv2
-# cv2 use for image and video processing function
 import numpy as np
 
-net = cv2.dnn.readNet("yolov3_training_2000.weights", "yolov3_testing.cfg")
-classes = ["Weapon"]
+# Load YOLO network with trained weights and config
+yolo_net = cv2.dnn.readNet("yolov3_training_2000.weights", "yolov3_testing.cfg")
+class_labels = ["Weapon"]
+
+# Uncomment if using a file with class names
 # with open("coco.names", "r") as f:
-#     classes = [line.strip() for line in f.readlines()]
+#     class_labels = [line.strip() for line in f.readlines()]
 
-# layer_names = net.getLayerNames()
-# output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
-output_layer_names = net.getUnconnectedOutLayersNames()
-colors = np.random.uniform(0, 255, size=(len(classes), 3))
+# Get the output layer names
+output_layer_names = yolo_net.getUnconnectedOutLayersNames()
+colors_palette = np.random.uniform(0, 255, size=(len(class_labels), 3))
 
+# Prompt for video file name or default to webcam
+def get_video_source():
+    source = input("Enter file name or press enter to start webcam: \n")
+    return 0 if source == "" else source
 
-# Loading image
-# img = cv2.imread("room_ser.jpg")
-# img = cv2.resize(img, None, fx=0.4, fy=0.4)
+# Capture video from source
+video_capture = cv2.VideoCapture(get_video_source())
 
-# Enter file name for example "ak47.mp4" or press "Enter" to start webcam
-def value():
-    val = input("Enter file name or press enter to start webcam : \n")
-    if val == "":
-        val = 0
-    return val
-
-
-# for video capture
-cap = cv2.VideoCapture(value())
-
-# val = cv2.VideoCapture()
+# Video processing loop
 while True:
-    _, img = cap.read()
-    if not _:
+    ret, frame = video_capture.read()
+    if not ret:
         print("Error: Failed to read a frame from the video source.")
         break
-    height, width, channels = img.shape
-    # width = 512
-    # height = 512
+    frame_height, frame_width, channels = frame.shape
 
-    # Detecting objects
-    blob = cv2.dnn.blobFromImage(img, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
+    # Prepare the image for object detection
+    blob = cv2.dnn.blobFromImage(frame, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
+    yolo_net.setInput(blob)
+    layer_outputs = yolo_net.forward(output_layer_names)
 
-    net.setInput(blob)
-    outs = net.forward(output_layer_names)
-
-    # Showing information on the screen
-    class_ids = []
-    confidences = []
-    boxes = []
-    for out in outs:
-        for detection in out:
+    # Process detection results
+    detected_class_ids = []
+    detection_confidences = []
+    bounding_boxes = []
+    for output in layer_outputs:
+        for detection in output:
             scores = detection[5:]
             class_id = np.argmax(scores)
             confidence = scores[class_id]
             if confidence > 0.5:
-                # Object detected
-                center_x = int(detection[0] * width)
-                center_y = int(detection[1] * height)
-                w = int(detection[2] * width)
-                h = int(detection[3] * height)
+                # Calculate object bounding box coordinates
+                center_x = int(detection[0] * frame_width)
+                center_y = int(detection[1] * frame_height)
+                box_width = int(detection[2] * frame_width)
+                box_height = int(detection[3] * frame_height)
+                box_x = int(center_x - box_width / 2)
+                box_y = int(center_y - box_height / 2)
 
-                # Rectangle coordinates
-                x = int(center_x - w / 2)
-                y = int(center_y - h / 2)
+                bounding_boxes.append([box_x, box_y, box_width, box_height])
+                detection_confidences.append(float(confidence))
+                detected_class_ids.append(class_id)
 
-                boxes.append([x, y, w, h])
-                confidences.append(float(confidence))
-                class_ids.append(class_id)
-
-    indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.4)
-    print(indexes)
-    if indexes == 0: print("weapon detected in frame")
+    # Apply non-maximum suppression to eliminate redundant boxes
+    selected_boxes = cv2.dnn.NMSBoxes(bounding_boxes, detection_confidences, 0.5, 0.4)
+    print(selected_boxes)
+    if selected_boxes == 0:
+        print("Weapon detected in frame")
+    
     font = cv2.FONT_HERSHEY_PLAIN
-    for i in range(len(boxes)):
-        if i in indexes:
-            x, y, w, h = boxes[i]
-            label = str(classes[class_ids[i]])
-            color = colors[class_ids[i]]
-            cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
-            cv2.putText(img, label, (x, y + 30), font, 3, color, 3)
+    for i in range(len(bounding_boxes)):
+        if i in selected_boxes:
+            x, y, w, h = bounding_boxes[i]
+            label = str(class_labels[detected_class_ids[i]])
+            color = colors_palette[detected_class_ids[i]]
+            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+            cv2.putText(frame, label, (x, y + 30), font, 3, color, 3)
 
-    # frame = cv2.resize(img, (width, height), interpolation=cv2.INTER_AREA)
-    cv2.imshow("Image", img)
-    key = cv2.waitKey(1)
-    if key == 27:
+    # Display the video frame with detections
+    cv2.imshow("Detection Frame", frame)
+    if cv2.waitKey(1) == 27:  # Press 'Esc' to exit
         break
-cap.release()
+
+# Release video capture and close windows
+video_capture.release()
 cv2.destroyAllWindows()
