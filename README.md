@@ -5,8 +5,13 @@ This project implements a weapon detection system using Python, Jupyter Notebook
 
 ## Features
 - *Object Detection*: Utilizes the YOLO model for real-time object detection.
+   • Assisted police in identifying dangerous situations by detecting guns in images.
 - *Weapon Identification*: Specifically trained to detect guns in various images.
+   • Implemented a pre-trained model on a custom dataset specifically created for detecting weapons.
 - *Digital Image Processing*: Applies advanced techniques to enhance detection accuracy and performance.
+   • Enhanced security by using computer vision and deep learning to identify weapons in images and video streams.
+
+
 
 ## Installation
 1. *Clone the Repository*
